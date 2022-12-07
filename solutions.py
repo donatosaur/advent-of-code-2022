@@ -3,6 +3,7 @@
 
 import heapq
 import itertools
+import string
 from collections.abc import Iterable
 
 
@@ -43,7 +44,7 @@ def decode_as_outcomes(file: str) -> tuple[tuple[str, str]]:
         'B': ('A', 'B', 'C'),
         'C': ('B', 'C', 'A'),
     }
-    with open(file, 'r') as move_data:
+    with open(file) as move_data:
         moves = (move.strip().split(' ') for move in move_data)
         pairs = ((first, xyz_to_index[second]) for first, second in moves)
         decoded_moves = ((move, corresponding_move[move][index]) for move, index in pairs)
@@ -74,8 +75,40 @@ def day_two(moves: Iterable[tuple[str, str]]) -> tuple[int, int]:
 
 
 # ------------------------------------ Day Three ------------------------------------
-def day_three():
-    pass
+def intersect_all(*args: Iterable) -> set:
+    """Return the intersection of all passed iterables"""
+    first, *rest = args
+    return set(first).intersection(*rest)
+
+
+def day_three(file: str) -> tuple[int, int]:
+    """Return the total priority of all items common to compartments of each elf's rucksack
+    and the total priority of the common item between each group of elves
+
+    Assumes are two compartments per line, evenly partitioned around the midpoint and elves
+    are grouped into triplets
+    """
+    values = {char: index for index, char in enumerate(string.ascii_letters, start=1)}
+    with open(file) as rucksack_data:
+        rucksacks = [rucksack.strip() for rucksack in rucksack_data]
+
+    midpoints = (len(rucksack) // 2 for rucksack in rucksacks)
+    common_items_by_compartment = itertools.chain.from_iterable(
+        set(rucksack[:midpoint]) & set(rucksack[midpoint:])
+        for rucksack, midpoint in zip(rucksacks, midpoints)
+    )
+
+    tripled_rucksack_iterator = [iter(rucksacks)] * 3
+    grouped_rucksacks = zip(*tripled_rucksack_iterator)
+    common_items_by_group = itertools.chain.from_iterable(
+        intersect_all(*group)
+        for group in grouped_rucksacks
+    )
+
+    compartment_value = sum(values[item] for item in common_items_by_compartment)
+    thirds_values = sum(values[item] for item in common_items_by_group)
+
+    return compartment_value, thirds_values
 
 
 if __name__ == "__main__":
@@ -85,3 +118,6 @@ if __name__ == "__main__":
     score_as_moves = day_two(decode_as_moves("input/day_2.txt"))
     score_as_targets = day_two(decode_as_outcomes("input/day_2.txt"))
     print(f"Day 2: {score_as_moves[1]}, {score_as_targets[1]}")
+
+    by_rucksack, by_group = day_three("input/day_3.txt")
+    print(f"Day 3: {by_rucksack}, {by_group}")
