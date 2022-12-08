@@ -111,6 +111,43 @@ def day_three(file: str) -> tuple[int, int]:
     return compartment_value, thirds_values
 
 
+# ------------------------------------ Day Four -------------------------------------
+def is_contained(interval_one: tuple[int, int], interval_two: tuple[int, int]) -> bool:
+    """Return True if one interval is contained by the other"""
+    left_one, right_one = interval_one
+    left_two, right_two = interval_two
+    one_contains_two = left_one <= left_two and right_one >= right_two
+    two_contains_one = left_one >= left_two and right_one <= right_two
+    return one_contains_two or two_contains_one
+
+
+def is_overlapping(interval_one: tuple[int, int], interval_two: tuple[int, int]) -> bool:
+    """Return True if one interval partially or completely overlaps the other"""
+    first, second = sorted((interval_one, interval_two))
+    return first[1] >= second[0]
+
+
+def parse_intervals(*interval_strings: str) -> tuple[tuple[int, ...], ...]:
+    """Return a tuple of boundaries from `start-end` dash-delimited interval strings"""
+    intervals = (tuple(int(boundary) for boundary in s.split('-')) for s in interval_strings)
+    return tuple(intervals)
+
+
+def day_four(file: str):
+    """Return the number of overlapping interval pairs by line
+
+    Assumes interval pairs are comma-delimited and interval bounds within those are dash-delimited
+    """
+    with open(file) as interval_data:
+        intervals = (line.strip().split(',') for line in interval_data)
+        pairwise_intervals = [parse_intervals(*pair) for pair in intervals]
+
+    contained = sum(is_contained(*pair) for pair in pairwise_intervals)
+    overlapping = sum(is_overlapping(*pair) for pair in pairwise_intervals)
+
+    return contained, overlapping
+
+
 if __name__ == "__main__":
     max_calories, max_three_calories = day_one("input/day_1.txt", 3)
     print(f"Day 1: {max_calories}, {max_three_calories}")
@@ -121,3 +158,6 @@ if __name__ == "__main__":
 
     by_rucksack, by_group = day_three("input/day_3.txt")
     print(f"Day 3: {by_rucksack}, {by_group}")
+
+    fully_overlapping, partially_overlapping = day_four("input/day_4.txt")
+    print(f"Day 4: {fully_overlapping}, {partially_overlapping}")
