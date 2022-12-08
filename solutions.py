@@ -4,6 +4,7 @@
 import heapq
 import itertools
 import string
+import re
 from collections.abc import Iterable
 
 
@@ -148,6 +149,59 @@ def day_four(file: str):
     return contained, overlapping
 
 
+# ------------------------------------ Day Five -------------------------------------
+def sorted_values_by_key(d: dict):
+    return (value for _, value in sorted(d.items(), key=lambda item: item[0]))
+
+
+def day_five(file: str) -> tuple[str, str]:
+    """Parse 1-indexed columnar crate diagram. Assumes all instructions are valid and every fourth
+    char from index 1 in the diagram represents a crate identifier (or is blank), as follows::
+            [J] [T]     [H]
+            # ^1  ^5  ^9  ^13
+            ⋮
+            <blank line>
+            move <num_boxes> from <source> to <destination>
+            ⋮
+
+    Return the top of each 1-indexed stack of crates after all move instructions are executed,
+    in order from lowest to highest indexed stack, both assuming one box is moved at a time and
+    assuming boxes are moved in batches
+    """
+    stacks = {}
+    with open(file) as crate_data:
+        while line := crate_data.readline().strip('\n'):
+            enumerated_crates = (
+                (i // 4 + 1, char)  # 1-indexed
+                for i, char in enumerate(line)
+                if (i - 1) % 4 == 0 and char.isalpha()
+            )
+            for index, crate in enumerated_crates:
+                stacks.setdefault(index, []).append(crate)
+        for stack in stacks.values():
+            stack.reverse()
+
+        pattern = re.compile(r"\b(\d+)\b")  # num_boxes, source, destination
+        matches = (pattern.findall(line) for line in crate_data)
+        instructions = [match for match in matches if len(match) == 3]
+
+    single_move = stacks
+    multi_move = {index: stack[:] for index, stack in stacks.items()}
+    for instruction in instructions:
+        num_boxes, source, destination = (int(digit) for digit in instruction)
+        single_move[destination].extend(
+            single_move[source].pop() for _ in range(num_boxes)
+        )
+        multi_move[destination].extend(
+            reversed([multi_move[source].pop() for _ in range(num_boxes)])
+        )
+
+    single_move_top_crates = ''.join(stack[-1] for stack in sorted_values_by_key(single_move))
+    multi_move_top_crates = ''.join(stack[-1] for stack in sorted_values_by_key(multi_move))
+
+    return single_move_top_crates, multi_move_top_crates
+
+
 if __name__ == "__main__":
     max_calories, max_three_calories = day_one("input/day_1.txt", 3)
     print(f"Day 1: {max_calories}, {max_three_calories}")
@@ -161,3 +215,6 @@ if __name__ == "__main__":
 
     fully_overlapping, partially_overlapping = day_four("input/day_4.txt")
     print(f"Day 4: {fully_overlapping}, {partially_overlapping}")
+
+    top_crates_single_move, top_crates_multi_move = day_five("input/day_5.txt")
+    print(f"Day 5: {top_crates_single_move}, {top_crates_multi_move}")
