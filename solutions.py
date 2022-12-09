@@ -1,12 +1,12 @@
 # Author: Donato Quartuccia
 # Last Modified: 2022-12-06
-
+import functools
 import heapq
 import itertools
 import string
 import re
+from collections import deque
 from collections.abc import Iterable
-
 
 # ------------------------------------- Day One -------------------------------------
 def day_one(file: str, num_elves: int) -> tuple[int, int]:
@@ -134,7 +134,7 @@ def parse_intervals(*interval_strings: str) -> tuple[tuple[int, ...], ...]:
     return tuple(intervals)
 
 
-def day_four(file: str):
+def day_four(file: str) -> tuple[int, int]:
     """Return the number of overlapping interval pairs by line
 
     Assumes interval pairs are comma-delimited and interval bounds within those are dash-delimited
@@ -145,7 +145,6 @@ def day_four(file: str):
 
     contained = sum(is_contained(*pair) for pair in pairwise_intervals)
     overlapping = sum(is_overlapping(*pair) for pair in pairwise_intervals)
-
     return contained, overlapping
 
 
@@ -157,7 +156,7 @@ def sorted_values_by_key(d: dict):
 def day_five(file: str) -> tuple[str, str]:
     """Parse 1-indexed columnar crate diagram. Assumes all instructions are valid and every fourth
     char from index 1 in the diagram represents a crate identifier (or is blank), as follows::
-            [J] [T]     [H]
+             [J] [T]     [H]
             # ^1  ^5  ^9  ^13
             ⋮
             <blank line>
@@ -198,8 +197,27 @@ def day_five(file: str) -> tuple[str, str]:
 
     single_move_top_crates = ''.join(stack[-1] for stack in sorted_values_by_key(single_move))
     multi_move_top_crates = ''.join(stack[-1] for stack in sorted_values_by_key(multi_move))
-
     return single_move_top_crates, multi_move_top_crates
+
+
+# ------------------------------------- Day Six -------------------------------------
+def find_unique_window(window_size: int, sequence: Iterable) -> int:
+    """Return the index of the first position in the sequence such that a window of size
+    ``window_size`` is full of unique elements, or -1 if there is no such position"""
+    buffer = deque(maxlen=window_size)
+    for index, char in enumerate(sequence):
+        if len(set(buffer)) == window_size:
+            return index
+        buffer.append(char)
+    return -1
+
+
+def day_six(file: str) -> tuple[int, int]:
+    """Return the index of the start of signal marker for windows of size 4 and 14"""
+    with open(file) as signal_data:
+        signal = signal_data.read()
+    solve = functools.partial(find_unique_window, sequence=signal)
+    return solve(4), solve(14)
 
 
 if __name__ == "__main__":
@@ -218,3 +236,6 @@ if __name__ == "__main__":
 
     top_crates_single_move, top_crates_multi_move = day_five("input/day_5.txt")
     print(f"Day 5: {top_crates_single_move}, {top_crates_multi_move}")
+
+    size_4, size_14 = day_six("input/day_6.txt")
+    print(f"Day 6: {size_4}, {size_14}")
