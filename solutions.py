@@ -1,12 +1,13 @@
 # Author: Donato Quartuccia
-# Last Modified: 2022-12-06
-import functools
+# Last Modified: 2022-12-12
 import heapq
 import itertools
 import string
 import re
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from data_structures import DirectoryStack
+
 
 # ------------------------------------- Day One -------------------------------------
 def day_one(file: str, num_elves: int) -> tuple[int, int]:
@@ -201,7 +202,7 @@ def day_five(file: str) -> tuple[str, str]:
 
 
 # ------------------------------------- Day Six -------------------------------------
-def find_unique_window(window_size: int, sequence: Iterable) -> int:
+def first_unique_window(sequence: Iterable, window_size: int) -> int:
     """Return the index of the first position in the sequence such that a window of size
     ``window_size`` is full of unique elements, or -1 if there is no such position"""
     buffer = deque(maxlen=window_size)
@@ -216,8 +217,71 @@ def day_six(file: str) -> tuple[int, int]:
     """Return the index of the start of signal marker for windows of size 4 and 14"""
     with open(file) as signal_data:
         signal = signal_data.read()
-    solve = functools.partial(find_unique_window, sequence=signal)
-    return solve(4), solve(14)
+    return first_unique_window(signal, 4), first_unique_window(signal, 14)
+
+
+# ------------------------------------ Day Seven ------------------------------------
+def parse_prompt(prompt_line: str) -> tuple[str, str]:
+    """Return the command and its first argument (if any) from a space-delimited prompt"""
+    _, command, *args = prompt_line.split(maxsplit=2)
+    return command, args[0] if args else ''
+
+
+def parse_cli_log(log: Iterable[str], prompt: str = '$') -> Iterator[tuple[str, ...]]:
+    """Return an iterator over tuples of parsed commands, their args, and their output (if any)"""
+    with_output = ()
+    log = (line.rstrip() for line in log)
+    for is_command, lines in itertools.groupby(log, key=lambda s: s.startswith(prompt)):
+        if is_command:
+            # the following group is the last command's output (if any); yield with output instead
+            *without_output, with_output = (parse_prompt(prompt_line) for prompt_line in lines)
+            yield from without_output
+        else:
+            yield tuple(itertools.chain(with_output, lines))
+
+
+def parse_ls(output: Iterable[str]) -> int:
+    """Return the child directories and sum of all files among the output of the ls command"""
+    parsed_output = (line.split(' ', maxsplit=1) for line in output)
+    return sum(int(prefix) for prefix, _ in parsed_output if prefix.isdigit())
+
+
+def day_seven(file: str) -> tuple[int, int]:
+    """Return the total size of all directories not exceeding size 100,000 and the size of the
+    smallest directory to be deleted such that 30,000,000 units of size are available"""
+    total_disk_space, required_disk_space = 70_000_000, 30_000_000
+    directory_stack = DirectoryStack(max_tracked_directory_size=100_000)
+    directory_sizes = {}
+    with open(file) as log:
+        for command, arg, *output in parse_cli_log(log):
+            match command, arg:
+                case "cd", ".":
+                    pass
+                case "cd", "..":
+                    path, size = directory_stack.pop()
+                    directory_sizes[path] = size
+                case "cd", _:
+                    directory_stack.push(arg, 0)
+                case "ls", _:
+                    size = parse_ls(output)
+                    directory_stack.update_size(size)
+                case _:
+                    raise ValueError(f"Command {command} not supported")
+    while directory_stack:
+        path, size = directory_stack.pop()
+        directory_sizes[path] = size
+    free_space = total_disk_space - directory_sizes['/']
+    if (size_to_free := required_disk_space - free_space) <= 0:
+        return directory_stack.accumulator, 0
+
+    directory_sizes = (size for size in directory_sizes.values() if size >= size_to_free)
+    size_to_delete = min(directory_sizes, default=0)
+    return directory_stack.accumulator, size_to_delete
+
+
+# ------------------------------------ Day Eight ------------------------------------
+def day_eight():
+    pass
 
 
 if __name__ == "__main__":
@@ -239,3 +303,6 @@ if __name__ == "__main__":
 
     size_4, size_14 = day_six("input/day_6.txt")
     print(f"Day 6: {size_4}, {size_14}")
+
+    size_all_directories, size_to_be_deleted = day_seven("input/day_7.txt")
+    print(f"Day 7: {size_all_directories}, {size_to_be_deleted}")
